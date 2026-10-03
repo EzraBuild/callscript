@@ -206,13 +206,41 @@ export function validateNode(node: acorn.AnyNode): void {
 				}
 				return;
 			}
-			// `new Set(...)` is THE dedupe idiom - ban it with the alternative,
-			// not just the rule, so the retry converges in one round trip.
-			throw new ExprError(
-				"Unsupported syntax: new (only new Date(...) is supported; it gives an ISO 8601 string). " +
-					"Dedupe with xs.filter((x, i, a) => a.indexOf(x) === i); group with Object.groupBy(xs, x => x.key).",
-				"syntax",
-			);
+			// Ban every other `new` with the alternative for what the author
+			// reached for, not just the rule, so the retry converges in one
+			// round trip.
+			const what =
+				node.callee.type === "Identifier" ? node.callee.name : undefined;
+			const only =
+				"(only new Date(...) is supported; it gives an ISO 8601 string)";
+			switch (what) {
+				case "RegExp":
+					throw new ExprError(
+						`Unsupported syntax: new RegExp ${only}. Match with s.includes(...), ` +
+							"s.startsWith(...), s.endsWith(...), or s.toLowerCase() === ...",
+						"syntax",
+					);
+				case "Error":
+					throw new ExprError(
+						`Unsupported syntax: new Error ${only}. A failed call already fails the run; ` +
+							"to end it yourself, guard: if (cond) return { ... }",
+						"syntax",
+					);
+				case "Set":
+				case "Map":
+					// `new Set(...)` is THE dedupe idiom.
+					throw new ExprError(
+						`Unsupported syntax: new ${what} ${only}. ` +
+							"Dedupe with xs.filter((x, i, a) => a.indexOf(x) === i); group with Object.groupBy(xs, x => x.key).",
+						"syntax",
+					);
+				default:
+					throw new ExprError(
+						`Unsupported syntax: new${what ? ` ${what}` : ""} ${only}. ` +
+							"Build plain objects and arrays with literals; dedupe with xs.filter((x, i, a) => a.indexOf(x) === i).",
+						"syntax",
+					);
+			}
 		}
 		default:
 			fail(node);

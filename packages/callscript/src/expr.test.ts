@@ -223,6 +223,17 @@ describe("evalExpr", () => {
 		expect(evalExpr("now.slice(0, 4)", { now })).toBe("2026");
 	});
 
+	it("names the alternative for what `new` was reaching for", () => {
+		expect(() => evalExpr('new RegExp("a").test(s)', { s: "a" })).toThrow(
+			/new RegExp.*includes/,
+		);
+		expect(() => evalExpr("new Map()", {})).toThrow(/new Map.*groupBy/);
+		expect(() => evalExpr('new Error("x")', {})).toThrow(
+			/new Error.*if \(cond\) return/,
+		);
+		expect(() => evalExpr("new Foo()", {})).toThrow(/new Foo.*literals/);
+	});
+
 	it("encodes and decodes base64 (incl. url-safe)", () => {
 		expect(evalExpr('Base64.encode("hi")', {})).toBe("aGk=");
 		expect(evalExpr('Base64.decode("aGk=")', {})).toBe("hi");
